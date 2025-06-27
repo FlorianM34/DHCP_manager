@@ -1,0 +1,389 @@
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-gear"></i> Configuration Management</h1>
+            <div class="btn-group">
+                <button class="btn btn-outline-info" onclick="refreshConfig()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+                <form method="post" action="/config/reload" class="d-inline">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-arrow-repeat"></i> Reload Kea
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Status -->
+<div class="row mb-4">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> Configuration Status</h5>
+            </div>
+            <div class="card-body">
+                <% if @config_valid %>
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <strong>Valid Configuration</strong><br>
+                        The current Kea configuration is valid and ready to use.
+                    </div>
+                <% else %>
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>Invalid Configuration</strong><br>
+                        There are issues with the current configuration that need to be addressed.
+                    </div>
+                <% end %>
+                
+                <% if @config %>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary"><%= (@config.dig('Dhcp4', 'subnet4') || []).length %></h4>
+                            <small>Subnets</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-info">
+                                <%= (@config.dig('Dhcp4', 'subnet4') || []).sum { |s| (s['reservations'] || []).length } %>
+                            </h4>
+                            <small>Reservations</small>
+                        </div>
+                    </div>
+                <% end %>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Configuration File</h5>
+            </div>
+            <div class="card-body">
+                <% config_stats = ConfigManager.get_config_stats rescue {} %>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>File Size:</strong></td>
+                        <td><%= format_file_size(config_stats[:config_file_size] || 0) %></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Last Modified:</strong></td>
+                        <td>
+                            <% if config_stats[:last_modified] %>
+                                <small><%= config_stats[:last_modified].strftime('%Y-%m-%d %H:%M:%S') %></small>
+                            <% else %>
+                                <small class="text-muted">Unknown</small>
+                            <% end %>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Pools:</strong></td>
+                        <td><%= config_stats[:total_pools] || 0 %></td>
+                    </tr>
+                </table>
+                
+                <div class="d-grid">
+                    <button class="btn btn-outline-secondary" onclick="showConfigPreview()">
+                        <i class="bi bi-eye"></i> Preview Configuration
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Backup Management</h5>
+            </div>
+            <div class="card-body">
+                <% backups = ConfigManager.list_backups rescue [] %>
+                <p><strong><%= backups.length %></strong> backup(s) available</p>
+                
+                <% if backups.any? %>
+                    <div class="mb-3">
+                        <strong>Latest Backup:</strong><br>
+                        <small><%= backups.first[:filename] %></small><br>
+                        <small class="text-muted"><%= backups.first[:created_at].strftime('%Y-%m-%d %H:%M:%S') %></small>
+                    </div>
+                <% end %>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="createBackup()">
+                        <i class="bi bi-download"></i> Create Backup
+                    </button>
+                    <% if backups.any? %>
+                        <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#backupsModal">
+                            <i class="bi bi-list"></i> Manage Backups
+                        </button>
+                    <% end %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-tools"></i> Configuration Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="d-grid">
+                            <button class="btn btn-success" onclick="updateWithReservations()">
+                                <i class="bi bi-arrow-up-circle"></i> Update with Database Reservations
+                            </button>
+                            <small class="text-muted mt-1">Sync database reservations to configuration</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-grid">
+                            <button class="btn btn-warning" onclick="validateConfig()">
+                                <i class="bi bi-check-square"></i> Validate Configuration
+                            </button>
+                            <small class="text-muted mt-1">Check configuration for errors</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-grid">
+                            <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#configEditor">
+                                <i class="bi bi-pencil-square"></i> Edit Configuration
+                            </button>
+                            <small class="text-muted mt-1">Advanced configuration editing</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-grid">
+                            <button class="btn btn-outline-danger" onclick="restartKea()">
+                                <i class="bi bi-arrow-repeat"></i> Restart Kea Service
+                            </button>
+                            <small class="text-muted mt-1">Full service restart</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Overview -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Current Configuration Overview</h5>
+            </div>
+            <div class="card-body">
+                <% if @config %>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Global Settings</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Valid Lifetime:</strong></td>
+                                    <td><%= @config.dig('Dhcp4', 'valid-lifetime') || 'Not set' %> seconds</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Renew Timer:</strong></td>
+                                    <td><%= @config.dig('Dhcp4', 'renew-timer') || 'Not set' %> seconds</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Rebind Timer:</strong></td>
+                                    <td><%= @config.dig('Dhcp4', 'rebind-timer') || 'Not set' %> seconds</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Interface Configuration</h6>
+                            <% interfaces = @config.dig('Dhcp4', 'interfaces-config', 'interfaces') || [] %>
+                            <% if interfaces.any? %>
+                                <ul class="list-unstyled">
+                                    <% interfaces.each do |interface| %>
+                                        <li><code><%= interface %></code></li>
+                                    <% end %>
+                                </ul>
+                            <% else %>
+                                <p class="text-muted">No interfaces configured</p>
+                            <% end %>
+                        </div>
+                    </div>
+                <% else %>
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                        <h4 class="mt-3">Configuration Not Available</h4>
+                        <p>Unable to load the current Kea configuration file.</p>
+                    </div>
+                <% end %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Backups Modal -->
+<div class="modal fade" id="backupsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-clock-history"></i> Configuration Backups</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <% backups = ConfigManager.list_backups rescue [] %>
+                <% if backups.any? %>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Created</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% backups.each do |backup| %>
+                                    <tr>
+                                        <td><code><%= backup[:filename] %></code></td>
+                                        <td><%= backup[:created_at].strftime('%Y-%m-%d %H:%M:%S') %></td>
+                                        <td><%= format_file_size(backup[:size]) %></td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-success" 
+                                                        onclick="restoreBackup('<%= backup[:filename] %>')">
+                                                    <i class="bi bi-arrow-up"></i> Restore
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        onclick="downloadBackup('<%= backup[:filename] %>')">
+                                                    <i class="bi bi-download"></i> Download
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% end %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% else %>
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-clock-history fs-1"></i>
+                        <h4 class="mt-3">No Backups Available</h4>
+                        <p>Create your first backup to get started.</p>
+                    </div>
+                <% end %>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="createBackup()">
+                    <i class="bi bi-download"></i> Create New Backup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Preview Modal -->
+<div class="modal fade" id="configPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye"></i> Configuration Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="configContent" style="max-height: 500px; overflow-y: auto; background: #f8f9fa; padding: 1rem; border-radius: 0.375rem;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-primary" onclick="copyConfigToClipboard()">
+                    <i class="bi bi-clipboard"></i> Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshConfig() {
+    window.location.reload();
+}
+
+function createBackup() {
+    if (confirm('Create a backup of the current configuration?')) {
+        // In a real implementation, this would make an AJAX call
+        alert('Backup functionality would be implemented here');
+    }
+}
+
+function updateWithReservations() {
+    if (confirm('Update the Kea configuration with all database reservations?\n\nThis will overwrite any existing reservations in the configuration file.')) {
+        // In a real implementation, this would make an AJAX call
+        alert('Update with reservations functionality would be implemented here');
+    }
+}
+
+function validateConfig() {
+    // In a real implementation, this would make an AJAX call to validate
+    alert('Configuration validation functionality would be implemented here');
+}
+
+function restartKea() {
+    if (confirm('Restart the Kea DHCP service?\n\nThis will briefly interrupt DHCP service.')) {
+        // In a real implementation, this would make an AJAX call
+        alert('Restart Kea functionality would be implemented here');
+    }
+}
+
+function showConfigPreview() {
+    <% if @config %>
+        const config = <%= @config.to_json %>;
+        document.getElementById('configContent').textContent = JSON.stringify(config, null, 2);
+        new bootstrap.Modal(document.getElementById('configPreviewModal')).show();
+    <% else %>
+        alert('Configuration not available for preview');
+    <% end %>
+}
+
+function copyConfigToClipboard() {
+    const content = document.getElementById('configContent').textContent;
+    navigator.clipboard.writeText(content).then(function() {
+        alert('Configuration copied to clipboard!');
+    }).catch(function() {
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function restoreBackup(filename) {
+    if (confirm(`Restore configuration from backup: ${filename}?\n\nThis will replace the current configuration and reload Kea.`)) {
+        // In a real implementation, this would make an AJAX call
+        alert(`Restore backup functionality would be implemented here for: ${filename}`);
+    }
+}
+
+function downloadBackup(filename) {
+    // In a real implementation, this would download the backup file
+    alert(`Download backup functionality would be implemented here for: ${filename}`);
+}
+</script>
+
+<%
+def format_file_size(bytes)
+    return '0 B' if bytes == 0
+    
+    units = ['B', 'KB', 'MB', 'GB']
+    unit_index = 0
+    size = bytes.to_f
+    
+    while size >= 1024 && unit_index < units.length - 1
+        size /= 1024
+        unit_index += 1
+    end
+    
+    "#{size.round(1)} #{units[unit_index]}"
+end
+%>

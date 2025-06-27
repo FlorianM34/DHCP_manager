@@ -1,0 +1,369 @@
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-bookmark"></i> IP Reservations</h1>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addReservationModal">
+                <i class="bi bi-bookmark-plus"></i> Add Reservation
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Reservations Overview -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Total Reservations</h5>
+                <h2 class="text-success"><%= (@reservations || []).length %></h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Subnets with Reservations</h5>
+                <h2 class="text-info">
+                    <%= (@reservations || []).map { |r| r[:subnet_id] }.uniq.length %>
+                </h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Recent Additions</h5>
+                <h2 class="text-primary">
+                    <%= (@reservations || []).select { |r| r[:created_at] && r[:created_at] > (Time.now - 24*60*60) }.length %>
+                </h2>
+                <small class="text-muted">Last 24 hours</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filter -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="searchReservations" 
+                               placeholder="Search by IP, MAC, or hostname...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="filterSubnet">
+                            <option value="">All Subnets</option>
+                            <% (@subnets || []).each do |subnet| %>
+                                <option value="<%= subnet[:id] %>">
+                                    Subnet <%= subnet[:id] %> (<%= subnet[:subnet] %>)
+                                </option>
+                            <% end %>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Clear Filters
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="text-end">
+                            <small class="text-muted">
+                                <span id="resultCount"><%= (@reservations || []).length %></span> reservations
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reservations Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list"></i> IP Reservations List</h5>
+            </div>
+            <div class="card-body">
+                <% if @reservations && @reservations.any? %>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="reservationsTable">
+                            <thead>
+                                <tr>
+                                    <th>IP Address</th>
+                                    <th>MAC Address</th>
+                                    <th>Hostname</th>
+                                    <th>Subnet</th>
+                                    <th>Created</th>
+                                    <th>Last Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% @reservations.each do |reservation| %>
+                                    <tr data-subnet-id="<%= reservation[:subnet_id] %>">
+                                        <td><code class="ip-address"><%= reservation[:ip_address] %></code></td>
+                                        <td><code class="mac-address"><%= reservation[:hw_address] %></code></td>
+                                        <td class="hostname">
+                                            <% if reservation[:hostname] && !reservation[:hostname].empty? %>
+                                                <%= reservation[:hostname] %>
+                                            <% else %>
+                                                <em class="text-muted">Not specified</em>
+                                            <% end %>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                <%= reservation[:subnet_id] %>
+                                            </span>
+                                            <% subnet = (@subnets || []).find { |s| s[:id] == reservation[:subnet_id] } %>
+                                            <% if subnet %>
+                                                <br><small class="text-muted"><%= subnet[:subnet] %></small>
+                                            <% end %>
+                                        </td>
+                                        <td>
+                                            <% if reservation[:created_at] %>
+                                                <small><%= reservation[:created_at].strftime('%Y-%m-%d %H:%M') rescue 'Unknown' %></small>
+                                            <% else %>
+                                                <small class="text-muted">Unknown</small>
+                                            <% end %>
+                                        </td>
+                                        <td>
+                                            <% if reservation[:updated_at] %>
+                                                <small><%= reservation[:updated_at].strftime('%Y-%m-%d %H:%M') rescue 'Unknown' %></small>
+                                            <% else %>
+                                                <small class="text-muted">Unknown</small>
+                                            <% end %>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        onclick="editReservation(<%= reservation[:id] %>)"
+                                                        title="Edit Reservation">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        onclick="deleteReservation(<%= reservation[:id] %>, '<%= reservation[:ip_address] %>')"
+                                                        title="Delete Reservation">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% end %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% else %>
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-bookmark fs-1"></i>
+                        <h4 class="mt-3">No IP Reservations</h4>
+                        <p>Create your first IP reservation to ensure specific devices always get the same IP address</p>
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addReservationModal">
+                            <i class="bi bi-bookmark-plus"></i> Add Your First Reservation
+                        </button>
+                    </div>
+                <% end %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Reservation Modal -->
+<div class="modal fade" id="addReservationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-bookmark-plus"></i> Add IP Reservation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="/reservations" id="addReservationForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="subnet_id" class="form-label">Subnet *</label>
+                        <select class="form-select" id="subnet_id" name="subnet_id" required>
+                            <option value="">Select a subnet</option>
+                            <% (@subnets || []).each do |subnet| %>
+                                <option value="<%= subnet[:id] %>">
+                                    Subnet <%= subnet[:id] %> - <%= subnet[:subnet] %>
+                                </option>
+                            <% end %>
+                        </select>
+                        <div class="form-text">Choose the subnet for this reservation</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="ip_address" class="form-label">IP Address *</label>
+                        <input type="text" class="form-control" id="ip_address" name="ip_address" 
+                               placeholder="192.168.1.100" required>
+                        <div class="form-text">The IP address to reserve</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="hw_address" class="form-label">MAC Address *</label>
+                        <input type="text" class="form-control" id="hw_address" name="hw_address" 
+                               placeholder="aa:bb:cc:dd:ee:ff" required>
+                        <div class="form-text">MAC address of the device (any format: aa:bb:cc:dd:ee:ff, aa-bb-cc-dd-ee-ff, or aabbccddeeff)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="hostname" class="form-label">Hostname</label>
+                        <input type="text" class="form-control" id="hostname" name="hostname" 
+                               placeholder="my-device">
+                        <div class="form-text">Optional hostname for the device</div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Note:</strong> After adding a reservation, the Kea configuration will be automatically reloaded to apply the changes.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-bookmark-plus"></i> Add Reservation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Search and filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchReservations');
+    const subnetFilter = document.getElementById('filterSubnet');
+    const table = document.getElementById('reservationsTable');
+    const resultCount = document.getElementById('resultCount');
+    
+    function filterTable() {
+        if (!table) return;
+        
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedSubnet = subnetFilter.value;
+        const rows = table.querySelectorAll('tbody tr');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const ipAddress = row.querySelector('.ip-address').textContent.toLowerCase();
+            const macAddress = row.querySelector('.mac-address').textContent.toLowerCase();
+            const hostname = row.querySelector('.hostname').textContent.toLowerCase();
+            const subnetId = row.getAttribute('data-subnet-id');
+            
+            const matchesSearch = !searchTerm || 
+                ipAddress.includes(searchTerm) || 
+                macAddress.includes(searchTerm) || 
+                hostname.includes(searchTerm);
+            
+            const matchesSubnet = !selectedSubnet || subnetId === selectedSubnet;
+            
+            if (matchesSearch && matchesSubnet) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        if (resultCount) {
+            resultCount.textContent = visibleCount;
+        }
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', filterTable);
+    }
+    
+    if (subnetFilter) {
+        subnetFilter.addEventListener('change', filterTable);
+    }
+    
+    // Form validation
+    const form = document.getElementById('addReservationForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const ipAddress = document.getElementById('ip_address').value;
+            const macAddress = document.getElementById('hw_address').value;
+            
+            // Basic IP validation
+            const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!ipPattern.test(ipAddress)) {
+                e.preventDefault();
+                alert('Please enter a valid IP address (e.g., 192.168.1.100)');
+                return;
+            }
+            
+            // Basic MAC validation
+            const macPatterns = [
+                /^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/,  // xx:xx:xx:xx:xx:xx
+                /^([0-9a-fA-F]{2}-){5}[0-9a-fA-F]{2}$/,  // xx-xx-xx-xx-xx-xx
+                /^[0-9a-fA-F]{12}$/                        // xxxxxxxxxxxx
+            ];
+            
+            const isValidMac = macPatterns.some(pattern => pattern.test(macAddress));
+            if (!isValidMac) {
+                e.preventDefault();
+                alert('Please enter a valid MAC address (e.g., aa:bb:cc:dd:ee:ff, aa-bb-cc-dd-ee-ff, or aabbccddeeff)');
+                return;
+            }
+        });
+    }
+});
+
+function clearFilters() {
+    document.getElementById('searchReservations').value = '';
+    document.getElementById('filterSubnet').value = '';
+    
+    // Trigger filter update
+    const event = new Event('input');
+    document.getElementById('searchReservations').dispatchEvent(event);
+}
+
+function editReservation(reservationId) {
+    // For now, show a simple alert. In a full implementation, 
+    // you would open an edit modal with the reservation data
+    alert('Edit functionality would be implemented here for reservation ID: ' + reservationId);
+}
+
+function deleteReservation(reservationId, ipAddress) {
+    if (!confirm(`Are you sure you want to delete the IP reservation for ${ipAddress}?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    // Create and submit form for DELETE request
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/reservations/${reservationId}`;
+    
+    const methodInput = document.createElement('input');
+    methodInput.type = 'hidden';
+    methodInput.name = '_method';
+    methodInput.value = 'DELETE';
+    form.appendChild(methodInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Auto-format MAC address input
+document.addEventListener('DOMContentLoaded', function() {
+    const macInput = document.getElementById('hw_address');
+    if (macInput) {
+        macInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^0-9a-fA-F]/g, '');
+            
+            // Auto-format with colons
+            if (value.length >= 2) {
+                value = value.match(/.{1,2}/g).join(':');
+                if (value.length > 17) {
+                    value = value.substring(0, 17);
+                }
+                e.target.value = value;
+            }
+        });
+    }
+});
+</script>
