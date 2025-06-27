@@ -255,5 +255,52 @@ class ConfigManager
         logger.error("Failed to cleanup old backups: #{e.message}")
       end
     end
+
+    def format_file_size(bytes)
+      return '0 B' if bytes == 0
+      
+      units = ['B', 'KB', 'MB', 'GB']
+      unit_index = 0
+      size = bytes.to_f
+      
+      while size >= 1024 && unit_index < units.length - 1
+          size /= 1024
+          unit_index += 1
+      end
+      
+      "#{size.round(1)} #{units[unit_index]}"
+    end
+
+
+    def format_uptime(seconds)
+      return 'Unknown' unless seconds.is_a?(Numeric)
+        
+        days = seconds / 86400
+        hours = (seconds % 86400) / 3600
+        minutes = (seconds % 3600) / 60
+        
+        if days > 0
+            "#{days.to_i}d #{hours.to_i}h #{minutes.to_i}m"
+        elsif hours > 0
+            "#{hours.to_i}h #{minutes.to_i}m"
+        else
+            "#{minutes.to_i}m"
+        end
+      end
+
+    def log_level_color(level)
+      case level.to_s.upcase
+      when 'ERROR'
+          'danger'
+      when 'WARN'
+          'warning'
+      when 'INFO'
+          'info'
+      when 'DEBUG'
+          'secondary'
+      else
+          'primary'
+      end
+    end
   end
 end

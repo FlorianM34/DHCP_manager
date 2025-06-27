@@ -125,7 +125,7 @@
                     <% if @kea_status[:uptime] %>
                         <div class="row mt-2">
                             <div class="col-md-6">
-                                <strong>Uptime:</strong> <%= format_uptime(@kea_status[:uptime]) %>
+                                <strong>Uptime:</strong> <%= Dashboard_manager.format_uptime(@kea_status[:uptime]) %>
                             </div>
                         </div>
                     <% end %>
@@ -233,9 +233,9 @@
                     <% if @recent_logs && @recent_logs.any? %>
                         <div class="logs-scroll" style="max-height: 300px; overflow-y: auto;">
                             <% @recent_logs.first(20).each do |log| %>
-                                <div class="log-entry mb-2 p-2 border-start border-3 border-<%= log_level_color(log[:level]) %> bg-light">
+                                <div class="log-entry mb-2 p-2 border-start border-3 border-<%= Dashboard_manager.log_level_color(log[:level]) %> bg-light">
                                     <div class="d-flex justify-content-between">
-                                        <span class="badge bg-<%= log_level_color(log[:level]) %>"><%= log[:level] %></span>
+                                        <span class="badge bg-<%= Dashboard_manager.log_level_color(log[:level]) %>"><%= log[:level] %></span>
                                         <small class="text-muted"><%= log[:timestamp].strftime('%H:%M:%S') rescue 'Unknown' %></small>
                                     </div>
                                     <small class="text-monospace"><%= log[:message] %></small>
@@ -282,35 +282,4 @@ setInterval(function() {
 }, 30000);
 </script>
 
-<%
-def format_uptime(seconds)
-    return 'Unknown' unless seconds.is_a?(Numeric)
-    
-    days = seconds / 86400
-    hours = (seconds % 86400) / 3600
-    minutes = (seconds % 3600) / 60
-    
-    if days > 0
-        "#{days.to_i}d #{hours.to_i}h #{minutes.to_i}m"
-    elsif hours > 0
-        "#{hours.to_i}h #{minutes.to_i}m"
-    else
-        "#{minutes.to_i}m"
-    end
-end
 
-def log_level_color(level)
-    case level.to_s.upcase
-    when 'ERROR'
-        'danger'
-    when 'WARN'
-        'warning'
-    when 'INFO'
-        'info'
-    when 'DEBUG'
-        'secondary'
-    else
-        'primary'
-    end
-end
-%>

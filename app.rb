@@ -9,6 +9,7 @@ require 'dotenv/load'
 require_relative 'lib/kea_manager'
 require_relative 'lib/database_manager'
 require_relative 'lib/config_manager'
+require_relative 'lib/dashboard_manager'
 
 class KeaDhcpApp < Sinatra::Base
   configure do
@@ -89,7 +90,7 @@ class KeaDhcpApp < Sinatra::Base
       @subnets = KeaManager.list_subnets
       @reservations = DatabaseManager.list_reservations
       @recent_logs = KeaManager.recent_logs(50)
-      
+
       erb :dashboard
     rescue => e
       settings.logger.error("Dashboard error: #{e.message}")

@@ -66,7 +66,7 @@
                 <table class="table table-sm">
                     <tr>
                         <td><strong>File Size:</strong></td>
-                        <td><%= format_file_size(config_stats[:config_file_size] || 0) %></td>
+                        <td><%= ConfigManager.format_file_size(config_stats[:config_file_size] || 0) %></td>
                     </tr>
                     <tr>
                         <td><strong>Last Modified:</strong></td>
@@ -251,7 +251,7 @@
                                     <tr>
                                         <td><code><%= backup[:filename] %></code></td>
                                         <td><%= backup[:created_at].strftime('%Y-%m-%d %H:%M:%S') %></td>
-                                        <td><%= format_file_size(backup[:size]) %></td>
+                                        <td><%= ConfigManager.format_file_size(backup[:size]) %></td>
                                         <td>
                                             <div class="btn-group" role="group">
                                                 <button class="btn btn-sm btn-outline-success" 
@@ -371,19 +371,3 @@ function downloadBackup(filename) {
 }
 </script>
 
-<%
-def format_file_size(bytes)
-    return '0 B' if bytes == 0
-    
-    units = ['B', 'KB', 'MB', 'GB']
-    unit_index = 0
-    size = bytes.to_f
-    
-    while size >= 1024 && unit_index < units.length - 1
-        size /= 1024
-        unit_index += 1
-    end
-    
-    "#{size.round(1)} #{units[unit_index]}"
-end
-%>
